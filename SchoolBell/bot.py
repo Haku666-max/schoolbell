@@ -45,6 +45,7 @@ db = Database(str(BASE_DIR / "school_facts.db"))
 db.init()
 
 user_last_fact = {}
+user_last_year_context = {}
 user_recent_facts = {}
 RECENT_FACTS_LIMIT = 10
 
@@ -184,6 +185,7 @@ async def send_random_fact_for_year(message: types.Message, year: int, show_year
 
     db.add_view(message.from_user.id, fact["id"])
     user_last_fact[message.from_user.id] = fact["id"]
+    user_last_year_context[message.from_user.id] = year
 
     is_fav = db.is_favorite(message.from_user.id, fact["id"])
     content = fact["content"] or "Без текста"
