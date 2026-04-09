@@ -9,7 +9,7 @@ from aiogram.types import (
 def main_menu():
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="🎲 Получить факт")],
+            [KeyboardButton(text="🎲 Факт моего года"), KeyboardButton(text="🌍 Случайный год")],
             [KeyboardButton(text="⭐ Избранное"), KeyboardButton(text="📊 Моя статистика")]
         ],
         resize_keyboard=True
@@ -41,21 +41,35 @@ def fact_kb(is_fav: bool):
         ]
     )
 
+def admin_weight_kb():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="1", callback_data="weight:1"),
+                InlineKeyboardButton(text="2", callback_data="weight:2"),
+                InlineKeyboardButton(text="3", callback_data="weight:3"),
+            ],
+            [
+                InlineKeyboardButton(text="5", callback_data="weight:5"),
+                InlineKeyboardButton(text="10", callback_data="weight:10"),
+            ]
+        ]
+    )
 
 def admin_category_kb():
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="🌍 world", callback_data="cat:world"),
-                InlineKeyboardButton(text="⚔️ war", callback_data="cat:war")
+                InlineKeyboardButton(text="🌍 Мир", callback_data="cat:world"),
+                InlineKeyboardButton(text="⚔️ Война", callback_data="cat:war")
             ],
             [
-                InlineKeyboardButton(text="🎵 culture", callback_data="cat:culture"),
-                InlineKeyboardButton(text="🔬 science", callback_data="cat:science")
+                InlineKeyboardButton(text="🎵 Культура", callback_data="cat:culture"),
+                InlineKeyboardButton(text="🔬 Наука", callback_data="cat:science")
             ],
             [
-                InlineKeyboardButton(text="💻 tech", callback_data="cat:tech"),
-                InlineKeyboardButton(text="📦 other", callback_data="cat:other")
+                InlineKeyboardButton(text="💻 Технологии", callback_data="cat:tech"),
+                InlineKeyboardButton(text="📦 Другое", callback_data="cat:other")
             ]
         ]
     )

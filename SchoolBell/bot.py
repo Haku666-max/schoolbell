@@ -1,5 +1,6 @@
 import asyncio
 import json
+import random
 from pathlib import Path
 
 from aiogram import Bot, Dispatcher, types, F
@@ -18,6 +19,7 @@ from keyboards import (
     admin_fact_actions_kb,
     admin_confirm_delete_kb,
     admin_search_results_kb,
+    admin_weight_kb,
 )
 
 
@@ -125,6 +127,27 @@ async def send_fact_message(target_message: types.Message, fact, with_admin_cont
             reply_markup=markup
         )
 
+async def send_random_year_fact(message: types.Message):
+    year = random.randint(1900, 2024)
+
+    fact = db.get_random_fact(message.from_user.id, year)
+
+    if not fact:
+        await message.answer("Пока нет фактов для случайного года 😢")
+        return
+
+    db.add_view(message.from_user.id, fact["id"])
+    user_last_fact[message.from_user.id] = fact["id"]
+
+    is_fav = db.is_favorite(message.from_user.id, fact["id"])
+
+    text = f"📅 Год: {year}\n\n{fact['content']}"
+
+    await message.answer_photo(
+        photo=fact["image"],
+        caption=text,
+        reply_markup=fact_kb(is_fav)
+    )
 
 @dp.message(Command("start"))
 async def start(message: types.Message):
@@ -263,22 +286,19 @@ async def admin_add_fact_year(message: types.Message, state: FSMContext):
 
     await state.update_data(year=year)
     await state.set_state(AddFactStates.waiting_for_weight)
-    await message.answer("Теперь отправь вес карточки (обычно 1). Чем больше число, тем чаще выпадает факт.")
+await message.answer(
+    "Выбери вес карточки:",
+    reply_markup=admin_weight_kb()
+)
 
-
-@dp.message(AddFactStates.waiting_for_weight)
-async def admin_add_fact_weight(message: types.Message, state: FSMContext):
-    text = (message.text or "").strip()
-    if not text.isdigit():
-        await message.answer("Вес должен быть числом. Например: 1")
-        return
-
-    weight = int(text)
-    if weight < 1:
-        await message.answer("Вес должен быть не меньше 1.")
-        return
-
+@dp.callback_query(F.data.startswith("weight:"))
+async def admin_add_fact_weight(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
+
+    if "content" not in data:
+        return
+
+    weight = int(callback.data.split(":")[1])
 
     fact_id = db.add_fact(
         content=data["content"],
@@ -291,9 +311,11 @@ async def admin_add_fact_weight(message: types.Message, state: FSMContext):
     await state.clear()
 
     fact = db.get_fact_by_id(fact_id)
-    await message.answer(f"✅ Карточка сохранена. ID: {fact_id}", reply_markup=admin_menu())
-    await send_fact_message(message, fact, with_admin_controls=True)
 
+    await callback.message.answer(f"✅ Карточка сохранена. ID: {fact_id}")
+    await send_fact_message(callback.message, fact, with_admin_controls=True)
+
+    await callback.answer()
 
 # ---------------- ADMIN LIST / SEARCH ----------------
 @dp.message(F.text == "📚 Последние карточки")
@@ -754,7 +776,7 @@ async def handle_all(message: types.Message, state: FSMContext):
             )
         return
 
-    if text == "🎲 Получить факт":
+    if text == "🎲 Факт моего года":
         await send_random_fact(message)
         return
 
@@ -797,6 +819,10 @@ async def handle_all(message: types.Message, state: FSMContext):
             f"Просмотрено фактов: {views}\n"
             f"В избранном: {favs}"
         )
+        return
+
+    if text == "🌍 Случайный год":
+        await send_random_year_fact(message)
         return
 
     if is_admin(user_id):
