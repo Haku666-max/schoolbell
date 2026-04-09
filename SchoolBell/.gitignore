@@ -1,0 +1,5 @@
+token.txt
+school_facts.db
+__pycache__/
+*.pyc
+.venv/
