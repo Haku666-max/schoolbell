@@ -10,6 +10,7 @@ def main_menu():
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="🎲 Факт моего года"), KeyboardButton(text="🌍 Случайный год")],
+            [KeyboardButton(text="🔥 Топ фактов")],
             [KeyboardButton(text="⭐ Избранное"), KeyboardButton(text="📊 Моя статистика")]
         ],
         resize_keyboard=True

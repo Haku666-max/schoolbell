@@ -45,6 +45,27 @@ db = Database(str(BASE_DIR / "school_facts.db"))
 db.init()
 
 user_last_fact = {}
+user_recent_facts = {}
+RECENT_FACTS_LIMIT = 10
+
+WEIGHTS = {
+    "war": 5,
+    "tech": 3,
+    "science": 3,
+    "culture": 2,
+    "world": 2,
+    "other": 1,
+}
+
+
+def remember_recent_fact(user_id: int, fact_id: int):
+    recent = user_recent_facts.get(user_id, [])
+    recent.append(fact_id)
+    user_recent_facts[user_id] = recent[-RECENT_FACTS_LIMIT:]
+
+
+def get_recent_fact_ids(user_id: int) -> list[int]:
+    return user_recent_facts.get(user_id, [])
 
 
 class AddFactStates(StatesGroup):
@@ -52,7 +73,6 @@ class AddFactStates(StatesGroup):
     waiting_for_content = State()
     waiting_for_category = State()
     waiting_for_year = State()
-    waiting_for_weight = State()
 
 
 class SearchStates(StatesGroup):
@@ -246,6 +266,30 @@ async def send_random_year_fact(message: types.Message):
     await message.answer("Пока в базе нет активных фактов.")
 
 
+@dp.message(F.text == "🔥 Топ фактов")
+async def top_facts(message: types.Message):
+    cur = db.conn.cursor()
+    cur.execute(
+        """
+        SELECT f.*, COUNT(fav.fact_id) AS fav_count
+        FROM facts f
+        LEFT JOIN favorites fav ON f.id = fav.fact_id
+        WHERE f.is_active = 1
+        GROUP BY f.id
+        ORDER BY fav_count DESC, f.id DESC
+        LIMIT 5
+        """
+    )
+    facts = cur.fetchall()
+
+    if not facts:
+        await message.answer("Пока нет топ фактов 😢")
+        return
+
+    for fact in facts:
+        await send_fact_message(message, fact)
+
+
 # ---------------- ADMIN ADD FACT ----------------
 
 @dp.message(F.text == "➕ Добавить карточку")
@@ -320,34 +364,22 @@ async def admin_add_fact_year(message: types.Message, state: FSMContext):
         await message.answer("Укажи корректный год.")
         return
 
-    await state.update_data(year=year)
-    await state.set_state(AddFactStates.waiting_for_weight)
-    await message.answer("Выбери вес карточки:", reply_markup=admin_weight_kb())
-
-
-@dp.callback_query(AddFactStates.waiting_for_weight, F.data.startswith("weight:"))
-async def admin_add_fact_weight(callback: types.CallbackQuery, state: FSMContext):
-    if not is_admin(callback.from_user.id):
-        await callback.answer()
-        return
-
     data = await state.get_data()
-    weight = int(callback.data.split(":", 1)[1])
+    weight = WEIGHTS.get(data["category"], 1)
 
     fact_id = db.add_fact(
         content=data["content"],
         image=data["image"],
         category=data["category"],
-        year=data["year"],
+        year=year,
         weight=weight
     )
 
     await state.clear()
 
     fact = db.get_fact_by_id(fact_id)
-    await callback.message.answer(f"✅ Карточка сохранена. ID: {fact_id}", reply_markup=admin_menu())
-    await send_fact_message(callback.message, fact, with_admin_controls=True)
-    await callback.answer()
+    await message.answer(f"✅ Карточка сохранена. ID: {fact_id}", reply_markup=admin_menu())
+    await send_fact_message(message, fact, with_admin_controls=True)
 
 
 # ---------------- ADMIN LIST / SEARCH ----------------
@@ -808,6 +840,10 @@ async def handle_all(message: types.Message, state: FSMContext):
         await send_random_year_fact(message)
         return
 
+    if text == "🔥 Топ фактов":
+        await top_facts(message)
+        return
+
     if text == "⭐ Избранное":
         favs = db.get_favorites(user_id)
 
@@ -863,10 +899,11 @@ async def callback_next(callback: types.CallbackQuery):
     await callback.answer()
 
     user = db.get_user(callback.from_user.id)
-    if user and user["birth_year"]:
-        await send_random_fact_for_user_birth_year(callback.message)
-    else:
+    if not user or not user["birth_year"]:
         await callback.message.answer("Сначала укажи год рождения.")
+        return
+
+    await send_random_fact_for_year(callback.message, int(user["birth_year"]), show_year_prefix=False)
 
 
 @dp.callback_query(F.data == "fav")
