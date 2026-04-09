@@ -41,20 +41,6 @@ def fact_kb(is_fav: bool):
         ]
     )
 
-def admin_weight_kb():
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text="1", callback_data="weight:1"),
-                InlineKeyboardButton(text="2", callback_data="weight:2"),
-                InlineKeyboardButton(text="3", callback_data="weight:3"),
-            ],
-            [
-                InlineKeyboardButton(text="5", callback_data="weight:5"),
-                InlineKeyboardButton(text="10", callback_data="weight:10"),
-            ]
-        ]
-    )
 
 def admin_category_kb():
     return InlineKeyboardMarkup(
@@ -70,6 +56,22 @@ def admin_category_kb():
             [
                 InlineKeyboardButton(text="💻 Технологии", callback_data="cat:tech"),
                 InlineKeyboardButton(text="📦 Другое", callback_data="cat:other")
+            ]
+        ]
+    )
+
+
+def admin_weight_kb():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="1", callback_data="weight:1"),
+                InlineKeyboardButton(text="2", callback_data="weight:2"),
+                InlineKeyboardButton(text="3", callback_data="weight:3"),
+            ],
+            [
+                InlineKeyboardButton(text="5", callback_data="weight:5"),
+                InlineKeyboardButton(text="10", callback_data="weight:10"),
             ]
         ]
     )
