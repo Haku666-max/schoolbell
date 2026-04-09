@@ -9,13 +9,14 @@ class Database:
     def init(self):
         cur = self.conn.cursor()
 
+        # --- USERS ---
         cur.execute("""
         CREATE TABLE IF NOT EXISTS users (
-            telegram_id INTEGER PRIMARY KEY,
-            birth_year INTEGER
+            telegram_id INTEGER PRIMARY KEY
         )
         """)
 
+        # --- FACTS ---
         cur.execute("""
         CREATE TABLE IF NOT EXISTS facts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,6 +29,7 @@ class Database:
         )
         """)
 
+        # --- VIEWS ---
         cur.execute("""
         CREATE TABLE IF NOT EXISTS views (
             telegram_id INTEGER,
@@ -36,6 +38,7 @@ class Database:
         )
         """)
 
+        # --- FAVORITES ---
         cur.execute("""
         CREATE TABLE IF NOT EXISTS favorites (
             telegram_id INTEGER,
@@ -43,6 +46,34 @@ class Database:
             PRIMARY KEY (telegram_id, fact_id)
         )
         """)
+
+        self.conn.commit()
+
+        # 🔥 ВАЖНО: проверяем колонки
+        self.ensure_columns()
+
+    # --- FIX STRUCTURE ---
+    def ensure_columns(self):
+        cur = self.conn.cursor()
+
+        # USERS
+        cur.execute("PRAGMA table_info(users)")
+        cols = [c["name"] for c in cur.fetchall()]
+        if "birth_year" not in cols:
+            cur.execute("ALTER TABLE users ADD COLUMN birth_year INTEGER")
+
+        # FACTS
+        cur.execute("PRAGMA table_info(facts)")
+        cols = [c["name"] for c in cur.fetchall()]
+
+        if "weight" not in cols:
+            cur.execute("ALTER TABLE facts ADD COLUMN weight INTEGER DEFAULT 1")
+
+        if "is_active" not in cols:
+            cur.execute("ALTER TABLE facts ADD COLUMN is_active INTEGER DEFAULT 1")
+
+        if "year" not in cols:
+            cur.execute("ALTER TABLE facts ADD COLUMN year INTEGER")
 
         self.conn.commit()
 
@@ -57,7 +88,7 @@ class Database:
 
     def get_user(self, user_id):
         cur = self.conn.cursor()
-        cur.execute("SELECT * FROM users WHERE telegram_id = ?", (user_id,))
+        cur.execute("SELECT * FROM users WHERE telegram_id=?", (user_id,))
         return cur.fetchone()
 
     # --- FACTS ---
@@ -85,14 +116,13 @@ class Database:
         rows = cur.fetchall()
 
         if not rows:
-            # сброс просмотров
-            cur.execute("DELETE FROM views WHERE telegram_id = ?", (user_id,))
+            cur.execute("DELETE FROM views WHERE telegram_id=?", (user_id,))
             self.conn.commit()
             return self.get_random_fact(user_id, year)
 
         weighted = []
         for row in rows:
-            weighted.extend([row] * row["weight"])
+            weighted.extend([row] * max(row["weight"], 1))
 
         return random.choice(weighted)
 
@@ -116,7 +146,7 @@ class Database:
     def remove_favorite(self, user_id, fact_id):
         cur = self.conn.cursor()
         cur.execute("""
-        DELETE FROM favorites WHERE telegram_id = ? AND fact_id = ?
+        DELETE FROM favorites WHERE telegram_id=? AND fact_id=?
         """, (user_id, fact_id))
         self.conn.commit()
 
